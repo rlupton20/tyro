@@ -1,6 +1,6 @@
-# jason
+# tyro
 
-`jason` is a dependently type JSON parsing library, that provides a quick way to create JSON parsers by deriving them from a type level description of the position of the value to be obtained.
+`tyro` is a dependently type JSON parsing library, that provides a quick way to create JSON parsers by deriving them from a type level description of the position of the value to be obtained.
 
 ## Example
 
@@ -9,13 +9,13 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 
-import Data.Jason
+import Data.Tyro
 import Data.Aeson (decode)
 import Data.Text (Text)
 
 json = "{\"key1\":[{\"key2\":41},{\"key2\":42}]}" :: Text
 
--- Extract [41, 42] inside the Jason types
+-- Extract [41, 42] inside the Tyro types
 parsed = decode json :: Maybe ("key1" |>| List ("key2" |>| Parse Integer))
 
 -- We can dispose of the types using unwrap

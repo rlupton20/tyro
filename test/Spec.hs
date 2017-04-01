@@ -7,7 +7,7 @@ import Test.HUnit as HU
 import Test.HUnit ((~:),(@=?))
 
 import Protolude
-import Data.Jason
+import Data.Tyro
 
 import qualified Data.Aeson as A
 import Data.Text (Text)

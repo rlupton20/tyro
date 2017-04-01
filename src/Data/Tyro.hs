@@ -1,5 +1,5 @@
 {-|
-Module      : Data.Jason
+Module      : Data.Tyro
 Description : A library for automatically deriving JSON parsers from types
 Copyright   : (c) Richard Lupton, 2017
 License     : BSD-3
@@ -10,7 +10,7 @@ Portability : POSIX
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
-module Data.Jason (
+module Data.Tyro (
   -- * Introduction
   -- $example
 
@@ -43,13 +43,13 @@ import           Lib.Prelude
 -- > {-# LANGUAGE OverloadedStrings #-}
 -- > {-# LANGUAGE DataKinds #-}
 -- > {-# LANGUAGE TypeOperators #-}
--- > import Data.Jason
+-- > import Data.Tyro
 -- > import Data.Aeson (decode)
 -- > import Data.Text (Text)
 -- >
 -- > json = "{\"key1\":[{\"key2\":41},{\"key2\":42}]}" :: Text
 -- >
--- > -- Extract [41, 42] inside the Jason types
+-- > -- Extract [41, 42] inside the Tyro types
 -- > parsed = decode json :: Maybe ("key1" |>| List ("key2" |>| Parse Integer))
 -- >
 -- > -- We can dispose of the types using unwrap: 'values' will have the value
