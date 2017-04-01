@@ -1,0 +1,27 @@
+image: fpco/stack-build:lts-7.20
+
+stages:
+  - test
+  - generate-docs
+
+
+test:
+  stage: test
+  script:
+    - stack --no-docker setup
+    - stack --no-docker test
+
+
+docs:
+  stage: generate-docs
+  script:
+  - stack --no-docker setup
+  - stack --no-docker haddock
+  - mkdir .public
+  - cp -r $(stack --no-docker path --local-doc-root)/* .public/
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
