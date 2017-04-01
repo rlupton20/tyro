@@ -7,13 +7,19 @@ stages:
 
 test:
   stage: test
+  cache:
+    paths:
+    - .stack-work/
   script:
     - stack --no-docker setup
     - stack --no-docker test
 
 
-docs:
+pages:
   stage: generate-docs
+  cache:
+    paths:
+    - .stack-work/
   script:
   - stack --no-docker setup
   - stack --no-docker haddock
