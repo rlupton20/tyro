@@ -1,7 +1,9 @@
 name:                jason
 version:             0.1.0.0
--- synopsis:
--- description:
+synopsis:            Type derived JSON parsing using Aeson
+description:
+    A library for deriving JSON parsers (using Aeson) by indicating
+    JSON structure at the type level.
 homepage:            https://github.com/rlupton20/jason#readme
 license:             BSD3
 license-file:        LICENSE
