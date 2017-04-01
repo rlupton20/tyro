@@ -45,9 +45,9 @@ import           Lib.Prelude
 -- > {-# LANGUAGE TypeOperators #-}
 -- > import Data.Tyro
 -- > import Data.Aeson (decode)
--- > import Data.Text (Text)
+-- > import qualified Data.ByteString.Lazy as B
 -- >
--- > json = "{\"key1\":[{\"key2\":41},{\"key2\":42}]}" :: Text
+-- > json = "{\"key1\":[{\"key2\":41},{\"key2\":42}]}" :: B.ByteString
 -- >
 -- > -- Extract [41, 42] inside the Tyro types
 -- > parsed = decode json :: Maybe ("key1" |>| List ("key2" |>| Parse Integer))
