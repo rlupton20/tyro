@@ -20,6 +20,12 @@ module Data.Tyro (
 , List
 , unwrap
 
+-- * Walking along keys
+, Tyro
+, extract
+, (>%>)
+, (%%>)
+
 -- * Internal types
 , JSBranch ) where
 
@@ -132,6 +138,8 @@ extract = Tyro []
 
 (>%>) :: String -> Tyro -> Tyro
 (>%>) s (Tyro t) = Tyro (s:t)
+infixr 9 >%>
+
 
 data TyroD :: [Symbol] -> * where
   TakeD :: TyroD '[]
@@ -150,3 +158,4 @@ data TyroD :: [Symbol] -> * where
 
     extend :: (KnownSymbol s) => TyroD xs -> Proxy s -> TyroD (s ': xs)
     extend t _ = KeyD t
+infixl 8 %%>
