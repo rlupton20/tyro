@@ -28,7 +28,7 @@ typeLevelJSONParserTests = testGroup "\nType level JSON Parser tests" . hUnitTes
               , canExtractListInJSBranchWithTypeFamily ]
 
 valueLevelJSONParserTests :: TF.Test
-valueLevelJSONParserTests = testGroup "\nType level JSON Parser tests" . hUnitTestToTests $
+valueLevelJSONParserTests = testGroup "Value leve JSON Parser tests" . hUnitTestToTests $
   HU.TestList [ canUseValueLevelKeysToParseInteger
               , canUseValueLevelKeysToExtractList
               , canUseOperatorsWithoutBrackets ]
@@ -66,7 +66,7 @@ canExtractListInJSBranchWithTypeFamily :: HU.Test
 canExtractListInJSBranchWithTypeFamily = "Can extract JSBranch on List with type family" ~:
   let json = "{\"key1\":[{\"key2\":41},{\"key2\":42}]}"
       expected = Just [41,42]
-      decoded = A.decode json :: Maybe ("key1" |>| List ("key2" |>| Parse Integer))
+      decoded = A.decode json :: Maybe ("key1" >%> List ("key2" >%> Extract Integer))
   in
     expected @=? (fmap (fmap unwrap) . (fmap unwrap) $ decoded)
 

@@ -12,15 +12,17 @@ Portability : POSIX
 {-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
 module Data.Tyro (
   -- * Introduction
-  -- $example
-
+  -- $introduction
+  
   -- * Building types
-  Parse
-, type( |>| )
+  -- $typed_example
+  Extract
+, type( >%> )
 , List
 , unwrap
 
--- * Walking along keys
+-- * Value level API
+-- $value_example
 , Tyro
 , extract
 , (>%>)
@@ -33,6 +35,8 @@ module Data.Tyro (
 import           Data.Aeson ((.:))
 import qualified Data.Aeson as A
 import           Data.Aeson.Types (Parser)
+import qualified Data.ByteString.Lazy as B
+import           Data.Reflection (reifySymbol)
 import           Data.Singletons (Sing, SingI(..))
 import           Data.Singletons.Prelude.List (Sing(SNil, SCons))
 import           Data.Singletons.TypeLits ( Symbol, SSymbol, KnownSymbol
@@ -42,48 +46,69 @@ import           Data.Text (pack)
 
 import           Lib.Prelude
 
-import Data.Reflection (reifySymbol)
-import qualified Data.ByteString.Lazy as B
-
-
--- $example
--- A small (artificial) example demonstrating how to use the types defined here.
---
--- > {-# LANGUAGE OverloadedStrings #-}
--- > {-# LANGUAGE DataKinds #-}
--- > {-# LANGUAGE TypeOperators #-}
--- > import Data.Tyro
--- > import Data.Aeson (decode)
--- > import qualified Data.ByteString.Lazy as B
--- >
--- > json = "{\"key1\":[{\"key2\":41},{\"key2\":42}]}" :: B.ByteString
--- >
--- > -- Extract [41, 42] inside the Tyro types
--- > parsed = decode json :: Maybe ("key1" |>| List ("key2" |>| Parse Integer))
--- >
--- > -- We can dispose of the types using unwrap: 'values' will have the value
--- > -- Just [41, 42]
--- > values :: Maybe [Integer]
--- > values = fmap unwrap parsed
-
 
 
 --------------------------------------------------------------------------------
 -- Type level API using a type family to mirror JSON structure
 --------------------------------------------------------------------------------
 
--- | @Parse a@ represents trying to parse JSON to an @a@.
-type Parse a = JSBranch '[] a
+-- | @Extract a@ represents trying to parse JSON to an @a@.
+type Extract a = JSBranch '[] a
 
--- | The type operator '|>|' provides a way of describing how to walk
+-- | The type operator '>%> provides a way of describing how to walk
 -- down a JSON tree.
-type family (x :: Symbol) |>| (b :: *) :: *
-type instance (x :: Symbol) |>| JSBranch xs a = JSBranch (x ': xs) a
+type family (x :: Symbol) >%> (b :: *) :: *
+type instance (x :: Symbol) >%> JSBranch xs a = JSBranch (x ': xs) a
 
 -- | The 'List' type operator constructs a parsing type for parsing
 -- a list of JSON objects.
 type family List (x :: *) :: *
-type instance List (JSBranch xs a) = Parse [JSBranch xs a]
+type instance List (JSBranch xs a) = Extract [JSBranch xs a]
+
+
+
+--------------------------------------------------------------------------------
+-- Value level API and reification
+--------------------------------------------------------------------------------
+
+-- | 'Tyro' is an abstract type representing a parser that walks down a JSON
+-- tree.
+newtype Tyro = Tyro [String] deriving (Eq, Show)
+
+-- | 'extract' is the value which represents halting the walk along the JSON
+-- tree, and pulling out the value there.
+extract :: Tyro
+extract = Tyro []
+
+
+-- | '>%>' allows you to specify a subtree indexed by a key. It's right
+-- associative, so chains of keys can be specified without parenthesese.
+(>%>) :: String -> Tyro -> Tyro
+(>%>) s (Tyro t) = Tyro (s:t)
+infixr 9 >%>
+
+
+-- | Internal proxying datatype for accumulating reified values as a list
+data TyroProxy :: [Symbol] -> * where
+  Take :: TyroProxy '[]
+  Key :: TyroProxy s -> TyroProxy (t ': s)
+  
+
+-- | '%%>' tries to parse a ByteString along a 'Tyro' to obtain a value
+(%%>) :: (A.FromJSON a) => B.ByteString -> Tyro -> Maybe a
+(%%>) bs (Tyro xs) = go bs (reverse xs) Take
+  where
+    go :: (A.FromJSON a, SingI xs) => B.ByteString -> [String] -> TyroProxy xs -> Maybe a
+    go b [] t = fmap unwrap $ doParse b t
+    go b (k:ks) t = reifySymbol k $ \p -> go b ks (extend t p)
+
+    doParse :: (A.FromJSON a, SingI xs) => B.ByteString -> TyroProxy xs -> Maybe (JSBranch xs a)
+    doParse b _ = A.decode b
+
+    extend :: (KnownSymbol s) => TyroProxy xs -> Proxy s -> TyroProxy (s ': xs)
+    extend t _ = Key t
+infixl 8 %%>
+
 
 
 --------------------------------------------------------------------------------
@@ -128,34 +153,45 @@ reflectSym s = withKnownSymbol s $ proxySym s Proxy
 
 
 --------------------------------------------------------------------------------
--- Value level API and reification
+-- Documentation
 --------------------------------------------------------------------------------
 
-newtype Tyro = Tyro [String] deriving (Eq, Show)
+-- $introduction
+-- 'Tyro' provides a type driven way of obtaining simple JSON parsers, and
+-- a simple value driven interface to obtain values deep inside a JSON object.
 
-extract :: Tyro
-extract = Tyro []
+-- $typed_example
+-- A small (artificial) example demonstrating how to use the typed interface.
+--
+-- > {-# LANGUAGE OverloadedStrings #-}
+-- > {-# LANGUAGE DataKinds #-}
+-- > {-# LANGUAGE TypeOperators #-}
+-- > import Data.Tyro
+-- > import Data.Aeson (decode)
+-- > import qualified Data.ByteString.Lazy as B
+-- >
+-- > json = "{\"key1\":[{\"key2\":41},{\"key2\":42}]}" :: B.ByteString
+-- >
+-- > -- Extract [41, 42] inside the Tyro types
+-- > parsed = decode json :: Maybe ("key1" >%> List ("key2" >%> Extract Integer))
+-- >
+-- > -- We can dispose of the types using unwrap: 'values' will have the value
+-- > -- Just [41, 42]
+-- > values :: Maybe [Integer]
+-- > values = fmap unwrap parsed
 
-(>%>) :: String -> Tyro -> Tyro
-(>%>) s (Tyro t) = Tyro (s:t)
-infixr 9 >%>
 
-
-data TyroD :: [Symbol] -> * where
-  TakeD :: TyroD '[]
-  KeyD :: TyroD s -> TyroD (t ': s)
-  
-
-(%%>) :: (A.FromJSON a) => B.ByteString -> Tyro -> Maybe a
-(%%>) b (Tyro xs) = go b (reverse xs) TakeD
-  where
-    go :: (A.FromJSON a, SingI xs) => B.ByteString -> [String] -> TyroD xs -> Maybe a
-    go b [] t = fmap unwrap $ doParse b t
-    go b (k:r) t = reifySymbol k $ \p -> go b r (extend t p)
-
-    doParse :: (A.FromJSON a, SingI xs) => B.ByteString -> TyroD xs -> Maybe (JSBranch xs a)
-    doParse b _ = A.decode b
-
-    extend :: (KnownSymbol s) => TyroD xs -> Proxy s -> TyroD (s ': xs)
-    extend t _ = KeyD t
-infixl 8 %%>
+-- $value_example
+-- The value level interface allows a piece of the JSON object to be extracted
+-- in a similar way to most dynamically typed languages.
+--
+-- > {-# LANGUAGE OverloadedStrings #-}
+-- > import Data.Tyro
+-- >
+-- > json = "{\"key1\": {\"key2\" :  [41, 42]}}"
+-- >
+-- > -- Extract [41, 42] inside the JSON
+-- > parsed = json %%> "key1" >%> "key2" >%> extract :: Maybe [Integer]
+--
+-- Not the overloaded strings extension in the above is only used to define
+-- the 'json' 'ByteString'..
