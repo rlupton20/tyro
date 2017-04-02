@@ -125,19 +125,25 @@ reflectSym s = withKnownSymbol s $ proxySym s Proxy
 -- Value level API and reification
 --------------------------------------------------------------------------------
 
-data Tyro = Take | Key String Tyro deriving (Eq, Show)
+newtype Tyro = Tyro [String] deriving (Eq, Show)
+
+extract :: Tyro
+extract = Tyro []
+
+(>%>) :: String -> Tyro -> Tyro
+(>%>) s (Tyro t) = Tyro (s:t)
 
 data TyroD :: [Symbol] -> * where
   TakeD :: TyroD '[]
   KeyD :: TyroD s -> TyroD (t ': s)
   
 
-parse :: (A.FromJSON a) => B.ByteString -> Tyro -> Maybe a
-parse b t = go b t TakeD
+(%%>) :: (A.FromJSON a) => B.ByteString -> Tyro -> Maybe a
+(%%>) b (Tyro xs) = go b (reverse xs) TakeD
   where
-    go :: (A.FromJSON a, SingI xs) => B.ByteString -> Tyro -> TyroD xs -> Maybe a
-    go b Take t = fmap unwrap $ doParse b t
-    go b (Key k r) t = reifySymbol k $ \p -> go b r (extend t p)
+    go :: (A.FromJSON a, SingI xs) => B.ByteString -> [String] -> TyroD xs -> Maybe a
+    go b [] t = fmap unwrap $ doParse b t
+    go b (k:r) t = reifySymbol k $ \p -> go b r (extend t p)
 
     doParse :: (A.FromJSON a, SingI xs) => B.ByteString -> TyroD xs -> Maybe (JSBranch xs a)
     doParse b _ = A.decode b
