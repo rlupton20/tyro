@@ -68,7 +68,7 @@ type instance List (JSBranch xs a) = Extract [JSBranch xs a]
 
 
 --------------------------------------------------------------------------------
--- Value level API and reification
+-- Value level API using reification
 --------------------------------------------------------------------------------
 
 -- | 'Tyro' is an abstract type representing a parser that walks down a JSON
@@ -98,12 +98,14 @@ data TyroProxy :: [Symbol] -> * where
 (%%>) :: (A.FromJSON a) => B.ByteString -> Tyro -> Maybe a
 (%%>) bs (Tyro xs) = go bs (reverse xs) Take
   where
-    go :: (A.FromJSON a, SingI xs) => B.ByteString -> [String] -> TyroProxy xs -> Maybe a
-    go b [] t = fmap unwrap $ doParse b t
+    go :: (A.FromJSON a, SingI xs) =>
+      B.ByteString -> [String] -> TyroProxy xs -> Maybe a
+    go b [] t = fmap unwrap $ parse b t
     go b (k:ks) t = reifySymbol k $ \p -> go b ks (extend t p)
 
-    doParse :: (A.FromJSON a, SingI xs) => B.ByteString -> TyroProxy xs -> Maybe (JSBranch xs a)
-    doParse b _ = A.decode b
+    parse :: (A.FromJSON a, SingI xs) =>
+      B.ByteString -> TyroProxy xs -> Maybe (JSBranch xs a)
+    parse b _ = A.decode b
 
     extend :: (KnownSymbol s) => TyroProxy xs -> Proxy s -> TyroProxy (s ': xs)
     extend t _ = Key t
@@ -132,20 +134,20 @@ unwrap b = case b of
 
 instance (A.FromJSON a, SingI xs) => A.FromJSON (JSBranch xs a) where
   parseJSON :: (A.FromJSON a, SingI xs) => A.Value -> Parser (JSBranch xs a)
-  parseJSON = parseSing sing
+  parseJSON = parse sing
     where
-      parseSing :: (A.FromJSON a) => Sing xs -> A.Value -> Parser (JSBranch xs a)
-      parseSing s o = case s of
+      parse :: (A.FromJSON a) => Sing xs -> A.Value -> Parser (JSBranch xs a)
+      parse s o = case s of
         SNil -> JSNil <$> A.parseJSON o
         x `SCons` xs -> case o of
-          A.Object v -> let key = pack (reflectSym x) in
-            JSCons <$> (v .: key >>= parseSing xs)
+          A.Object v -> let key = pack (reflectSymbol x) in
+            JSCons <$> (v .: key >>= parse xs)
           _ -> empty
 
 
 -- | 'reflectSym' reflects a type level symbol into a value level string
-reflectSym :: SSymbol s -> String
-reflectSym s = withKnownSymbol s $ proxySym s Proxy
+reflectSymbol :: SSymbol s -> String
+reflectSymbol s = withKnownSymbol s $ proxySym s Proxy
   where
     proxySym :: (KnownSymbol n) => SSymbol n -> Proxy n -> String
     proxySym _ = symbolVal
@@ -188,7 +190,7 @@ reflectSym s = withKnownSymbol s $ proxySym s Proxy
 -- > {-# LANGUAGE OverloadedStrings #-}
 -- > import Data.Tyro
 -- >
--- > json = "{\"key1\": {\"key2\" :  [41, 42]}}"
+-- > json = "{\"key1\": {\"key2\" :  [41, 42]}}" :: B.ByteString
 -- >
 -- > -- Extract [41, 42] inside the JSON
 -- > parsed = json %%> "key1" >%> "key2" >%> extract :: Maybe [Integer]

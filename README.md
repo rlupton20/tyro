@@ -31,7 +31,7 @@ values = fmap unwrap parsed
 {-# LANGUAGE OverloadedStrings #-}
 import Data.Tyro
 
-json = "{\"key1\": {\"key2\" :  [41, 42]}}"
+json = "{\"key1\": {\"key2\" :  [41, 42]}}" :: B.ByteString
 
 -- Extract [41, 42] inside the JSON
 parsed = json %%> "key1" >%> "key2" >%> extract :: Maybe [Integer]
