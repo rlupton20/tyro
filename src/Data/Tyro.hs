@@ -36,6 +36,9 @@ import           Data.Text (pack)
 
 import           Lib.Prelude
 
+import Data.Reflection (reifySymbol)
+import qualified Data.ByteString.Lazy as B
+
 
 -- $example
 -- A small (artificial) example demonstrating how to use the types defined here.
@@ -117,3 +120,27 @@ reflectSym s = withKnownSymbol s $ proxySym s Proxy
     proxySym _ = symbolVal
 
 
+
+--------------------------------------------------------------------------------
+-- Value level API and reification
+--------------------------------------------------------------------------------
+
+data Tyro = Take | Key String Tyro deriving (Eq, Show)
+
+data TyroD :: [Symbol] -> * where
+  TakeD :: TyroD '[]
+  KeyD :: TyroD s -> TyroD (t ': s)
+  
+
+parse :: (A.FromJSON a) => B.ByteString -> Tyro -> Maybe a
+parse b t = go b t TakeD
+  where
+    go :: (A.FromJSON a, SingI xs) => B.ByteString -> Tyro -> TyroD xs -> Maybe a
+    go b Take t = fmap unwrap $ doParse b t
+    go b (Key k r) t = reifySymbol k $ \p -> go b r (extend t p)
+
+    doParse :: (A.FromJSON a, SingI xs) => B.ByteString -> TyroD xs -> Maybe (JSBranch xs a)
+    doParse b _ = A.decode b
+
+    extend :: (KnownSymbol s) => TyroD xs -> Proxy s -> TyroD (s ': xs)
+    extend t _ = KeyD t
