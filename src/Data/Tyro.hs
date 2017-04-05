@@ -13,7 +13,7 @@ Portability : POSIX
 module Data.Tyro (
   -- * Introduction
   -- $introduction
-  
+
   -- * Building types
   -- $typed_example
   Extract
@@ -92,7 +92,7 @@ infixr 9 >%>
 data TyroProxy :: [Symbol] -> * where
   Take :: TyroProxy '[]
   Key :: TyroProxy s -> TyroProxy (t ': s)
-  
+
 
 -- | '%%>' tries to parse a ByteString along a 'Tyro' to obtain a value
 (%%>) :: (A.FromJSON a) => B.ByteString -> Tyro -> Maybe a
