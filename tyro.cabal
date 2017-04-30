@@ -20,9 +20,11 @@ library
   ghc-options:         -Wall
   exposed-modules:     Data.Tyro
   other-modules:       Lib.Prelude
+                     , Data.Tyro.Internal
   build-depends:       base >= 4.9 && < 5
                      , protolude >= 0.1.6 && < 0.2
                      , aeson
+                     , vector
                      , text
                      , bytestring
                      , singletons
