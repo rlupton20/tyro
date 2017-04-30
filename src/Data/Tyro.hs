@@ -180,7 +180,7 @@ reflectSymbol s = withKnownSymbol s $ proxySym s Proxy
 -- > -- We can dispose of the types using unwrap: 'values' will have the value
 -- > -- Just [41, 42]
 -- > values :: Maybe [Integer]
--- > values = fmap unwrap parsed
+-- > values = fmap (fmap unwrap . unwrap) parsed
 
 
 -- $value_example
