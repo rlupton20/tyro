@@ -19,10 +19,10 @@ module Data.Tyro (
 
   -- * Building types
   -- $typed_example
---   Extract
--- , type( >%> )
--- , List
-  unwrap
+    Extract
+  , type( >%> )
+  , List
+  ,  unwrap
 
 -- -- * Value level API
 -- -- $value_example
@@ -62,17 +62,17 @@ import           Lib.Prelude
 --------------------------------------------------------------------------------
 
 -- | @Extract a@ represents trying to parse JSON to an @a@.
--- type Extract a = JSBranch '[] a
+type Extract a = JSBranch 'JSExtract a
 
 -- | The type operator '>%> provides a way of describing how to walk
 -- down a JSON tree.
--- type family (x :: Symbol) >%> (b :: *) :: *
--- type instance (x :: Symbol) >%> JSBranch xs a = JSBranch (x ': xs) a
+type family (x :: Symbol) >%> (b :: *) :: *
+type instance (x :: Symbol) >%> JSBranch xs a = JSBranch ('JSKey x xs) a
 
 -- | The 'List' type operator constructs a parsing type for parsing
 -- a list of JSON objects.
--- type family List (x :: *) :: *
--- type instance List (JSBranch xs a) = Extract [JSBranch xs a]
+type family List (x :: *) :: *
+type instance List (JSBranch xs a) = JSBranch ('JSArray xs) a
 
 
 
@@ -198,7 +198,7 @@ reflectSymbol s = withKnownSymbol s $ proxySym s Proxy
 -- > -- We can dispose of the types using unwrap: 'values' will have the value
 -- > -- Just [41, 42]
 -- > values :: Maybe [Integer]
--- > values = fmap (fmap unwrap . unwrap) parsed
+-- > values = fmap unwrap parsed
 
 
 -- $value_example
