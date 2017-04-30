@@ -24,6 +24,7 @@ typeLevelJSONParserTests :: TF.Test
 typeLevelJSONParserTests = testGroup "\nType level JSON Parser tests" . hUnitTestToTests $
   HU.TestList [ canExtractTextInJSBranch
               , canExtractIntegerInJSBranch
+              , canExtractPreludeListInJSBranch
               , canExtractListInJSBranch
               , canExtractListInJSBranchWithTypeFamily ]
 
@@ -41,7 +42,7 @@ canExtractTextInJSBranch :: HU.Test
 canExtractTextInJSBranch = "Can extract JSBranch on Text" ~:
   let json = "{\"key1\":{\"key2\":{\"key3\":\"Some text\"}}}"
       expected = Just "Some text"
-      decoded = A.decode json :: Maybe (JSBranch '["key1", "key2", "key3"] Text)
+      decoded = A.decode json :: Maybe (JSBranch ('JSKey "key1" ('JSKey "key2" ('JSKey "key3" 'JSExtract))) Text)
   in
     expected @=? fmap unwrap decoded
 
@@ -49,17 +50,25 @@ canExtractIntegerInJSBranch :: HU.Test
 canExtractIntegerInJSBranch = "Can extract JSBranch on Integer" ~:
   let json = "{\"key1\":{\"key2\":{\"key3\":42}}}"
       expected = Just 42
-      decoded = A.decode json :: Maybe (JSBranch '["key1", "key2", "key3"] Integer)
+      decoded = A.decode json :: Maybe (JSBranch ('JSKey "key1" ('JSKey "key2" ('JSKey "key3" 'JSExtract))) Integer)
   in
     expected @=? fmap unwrap decoded
 
-canExtractListInJSBranch :: HU.Test
-canExtractListInJSBranch = "Can extract JSBranch on List" ~:
+canExtractPreludeListInJSBranch :: HU.Test
+canExtractPreludeListInJSBranch = "Can extract JSBranch on List (Prelude)" ~:
   let json = "{\"key1\":[{\"key2\":41},{\"key2\":42}]}"
       expected = Just [41,42]
-      decoded = A.decode json :: Maybe (JSBranch '["key1"] [JSBranch '["key2"] Integer])
+      decoded = A.decode json :: Maybe (JSBranch ('JSKey "key1" 'JSExtract) [JSBranch ('JSKey "key2" 'JSExtract) Integer])
   in
     expected @=? (fmap (fmap unwrap) . (fmap unwrap) $ decoded)
+
+canExtractListInJSBranch :: HU.Test
+canExtractListInJSBranch = "Can extract JSBranch on List (Tyro)" ~:
+  let json = "{\"key1\":[{\"key2\":41},{\"key2\":42}]}"
+      expected = Just [41,42]
+      decoded = A.decode json :: Maybe (JSBranch ('JSKey "key1" ('JSArray ('JSKey "key2" 'JSExtract))) Integer)
+  in
+    expected @=? fmap unwrap decoded
 
 
 canExtractListInJSBranchWithTypeFamily :: HU.Test
@@ -68,7 +77,7 @@ canExtractListInJSBranchWithTypeFamily = "Can extract JSBranch on List with type
       expected = Just [41,42]
       decoded = A.decode json :: Maybe ("key1" >%> List ("key2" >%> Extract Integer))
   in
-    expected @=? (fmap (fmap unwrap) . (fmap unwrap) $ decoded)
+    expected @=? fmap unwrap decoded
 
 
 --------------------------------------------------------------------------------

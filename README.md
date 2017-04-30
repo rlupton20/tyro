@@ -22,7 +22,7 @@ parsed = decode json :: Maybe ("key1" >%> List ("key2" >%> Extract Integer))
 
 -- We can dispose of the types using unwrap
 values :: Maybe [Integer]
-values = fmap (fmap unwrap . unwrap) parsed
+values = fmap unwrap parsed
 ```
 
 ### Value driven interface
