@@ -16,8 +16,8 @@ main :: IO ()
 main = defaultMain tests
 
 tests :: [ TF.Test ]
-tests = [ typeLevelJSONParserTests ]
-        -- , valueLevelJSONParserTests ]
+tests = [ typeLevelJSONParserTests
+        , valueLevelJSONParserTests ]
 
 
 typeLevelJSONParserTests :: TF.Test
@@ -28,11 +28,11 @@ typeLevelJSONParserTests = testGroup "\nType level JSON Parser tests" . hUnitTes
               , canExtractListInJSBranch
               , canExtractListInJSBranchWithTypeFamily ]
 
--- valueLevelJSONParserTests :: TF.Test
--- valueLevelJSONParserTests = testGroup "Value leve JSON Parser tests" . hUnitTestToTests $
---   HU.TestList [ canUseValueLevelKeysToParseInteger
---               , canUseValueLevelKeysToExtractList
---               , canUseOperatorsWithoutBrackets ]
+valueLevelJSONParserTests :: TF.Test
+valueLevelJSONParserTests = testGroup "Value leve JSON Parser tests" . hUnitTestToTests $
+  HU.TestList [ canUseValueLevelKeysToParseInteger
+              , canUseValueLevelKeysToExtractList
+              , canUseOperatorsWithoutBrackets ]
 
 --------------------------------------------------------------------------------
 -- Type level JSON Parser tests
@@ -84,33 +84,33 @@ canExtractListInJSBranchWithTypeFamily = "Can extract JSBranch on List with type
 -- Value level parsing tests
 --------------------------------------------------------------------------------
 
--- canUseValueLevelKeysToParseInteger :: HU.Test
--- canUseValueLevelKeysToParseInteger =
---   "Can extract integer using value level API" ~:
---   let json = "{\"key1\":{\"key2\":{\"key3\":42}}}"
---       parser = "key1" >%> "key2" >%> "key3" >%> extract
---       expected = Just 42
---       decoded = json %%> parser :: Maybe Integer
---   in
---     expected @=? decoded
+canUseValueLevelKeysToParseInteger :: HU.Test
+canUseValueLevelKeysToParseInteger =
+  "Can extract integer using value level API" ~:
+  let json = "{\"key1\":{\"key2\":{\"key3\":42}}}"
+      parser = "key1" >%> "key2" >%> "key3" >%> extract
+      expected = Just 42
+      decoded = json %%> parser :: Maybe Integer
+  in
+    expected @=? decoded
 
 
--- canUseValueLevelKeysToExtractList :: HU.Test
--- canUseValueLevelKeysToExtractList =
---   "Can extract list of integers using value level API" ~:
---   let json = "{\"key1\": {\"key2\" :  [41, 42]}}"
---       parser = "key1" >%> "key2" >%> extract
---       expected = Just [41,42]
---       decoded = json %%> parser :: Maybe [Integer]
---   in
---     expected @=? decoded
+canUseValueLevelKeysToExtractList :: HU.Test
+canUseValueLevelKeysToExtractList =
+  "Can extract list of integers using value level API" ~:
+  let json = "{\"key1\": {\"key2\" :  [41, 42]}}"
+      parser = "key1" >%> "key2" >%> extract
+      expected = Just [41,42]
+      decoded = json %%> parser :: Maybe [Integer]
+  in
+    expected @=? decoded
 
 
--- canUseOperatorsWithoutBrackets :: HU.Test
--- canUseOperatorsWithoutBrackets =
---   "Can use operators without brackets in mainline case" ~:
---   let json = "{\"key1\": {\"key2\" :  [41, 42]}}"
---       expected = Just [41,42]
---       decoded = json %%> "key1" >%> "key2" >%> extract :: Maybe [Integer]
---   in
---     expected @=? decoded
+canUseOperatorsWithoutBrackets :: HU.Test
+canUseOperatorsWithoutBrackets =
+  "Can use operators without brackets in mainline case" ~:
+  let json = "{\"key1\": {\"key2\" :  [41, 42]}}"
+      expected = Just [41,42]
+      decoded = json %%> "key1" >%> "key2" >%> extract :: Maybe [Integer]
+  in
+    expected @=? decoded

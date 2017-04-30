@@ -1,6 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-|
 Module      : Data.Tyro
 Description : A library for automatically deriving JSON parsers from types
@@ -24,34 +21,33 @@ module Data.Tyro (
   , List
   ,  unwrap
 
--- -- * Value level API
--- -- $value_example
--- , Tyro
--- , extract
--- , (>%>)
--- , (%%>)
+  -- * Value level API
+  -- $value_example
+  , Tyro
+  , extract
+  , (>%>)
+  , (%%>)
 
 -- * Internal types
   , JSLens(..)
   , JSBranch
-  , JSUnwrap ) where
+  , Unwrap ) where
 
 
 import           Data.Aeson ((.:))
 import qualified Data.Aeson as A
 import           Data.Aeson.Types (Parser)
-import           Data.Vector (Vector)
-import qualified Data.Vector as V
 import qualified Data.ByteString.Lazy as B
 import           Data.Reflection (reifySymbol)
 import           Data.Singletons (Sing, SingI(..))
-import           Data.Singletons.Prelude.List (Sing(SNil, SCons))
 import           Data.Singletons.TypeLits ( Symbol, SSymbol, KnownSymbol
                                           , withKnownSymbol, symbolVal )
 import           Data.String (String)
 import           Data.Text (pack)
+import           Data.Vector (Vector)
+import qualified Data.Vector as V
 
-import Data.Tyro.Internal
+import           Data.Tyro.Internal
 
 import           Lib.Prelude
 
@@ -82,43 +78,49 @@ type instance List (JSBranch xs a) = JSBranch ('JSArray xs) a
 
 -- | 'Tyro' is an abstract type representing a parser that walks down a JSON
 -- tree.
--- newtype Tyro = Tyro [String] deriving (Eq, Show)
+newtype Tyro = Tyro [String] deriving (Eq, Show)
 
 -- | 'extract' is the value which represents halting the walk along the JSON
 -- tree, and pulling out the value there.
--- extract :: Tyro
--- extract = Tyro []
+extract :: Tyro
+extract = Tyro []
 
 
 -- | '>%>' allows you to specify a subtree indexed by a key. It's right
 -- associative, so chains of keys can be specified without parenthesese.
--- (>%>) :: String -> Tyro -> Tyro
--- (>%>) s (Tyro t) = Tyro (s:t)
--- infixr 9 >%>
+(>%>) :: String -> Tyro -> Tyro
+(>%>) s (Tyro t) = Tyro (s:t)
+infixr 9 >%>
 
 
 -- | Internal proxying datatype for accumulating reified values as a list
--- data TyroProxy :: [Symbol] -> * where
---   Take :: TyroProxy '[]
---   Key :: TyroProxy s -> TyroProxy (t ': s)
+data TyroProxy :: JSLens Symbol -> * where
+  Take :: TyroProxy 'JSExtract
+  Key :: TyroProxy s -> TyroProxy ('JSKey t s)
 
 
 -- | '%%>' tries to parse a ByteString along a 'Tyro' to obtain a value
--- (%%>) :: (A.FromJSON a) => B.ByteString -> Tyro -> Maybe a
--- (%%>) bs (Tyro xs) = go bs (reverse xs) Take
---   where
---     go :: (A.FromJSON a, SingI xs) =>
---       B.ByteString -> [String] -> TyroProxy xs -> Maybe a
---     go b [] t = fmap unwrap $ parse b t
---     go b (k:ks) t = reifySymbol k $ \p -> go b ks (extend t p)
+(%%>) :: (A.FromJSON a) => B.ByteString -> Tyro -> Maybe a
+(%%>) bs (Tyro xs) = go bs (reverse xs) Take
+  where
+    go :: (A.FromJSON a, SingI xs) =>
+      B.ByteString -> [String] -> TyroProxy xs -> Maybe a
+    go b [] t = fmap dumbUnwrap $ parse b t
+    go b (k:ks) t = reifySymbol k $ \p -> go b ks (extend t p)
 
---     parse :: (A.FromJSON a, SingI xs) =>
---       B.ByteString -> TyroProxy xs -> Maybe (JSBranch xs a)
---     parse b _ = A.decode b
+    parse :: (A.FromJSON a, SingI xs) =>
+      B.ByteString -> TyroProxy xs -> Maybe (JSBranch xs a)
+    parse b _ = A.decode b
 
---     extend :: (KnownSymbol s) => TyroProxy xs -> Proxy s -> TyroProxy (s ': xs)
---     extend t _ = Key t
--- infixl 8 %%>
+    extend :: (KnownSymbol s) => TyroProxy xs -> Proxy s -> TyroProxy ('JSKey s xs)
+    extend t _ = Key t
+
+    dumbUnwrap :: JSBranch xs a -> a
+    dumbUnwrap (JSNil x) = x
+    dumbUnwrap (JSCons x') = dumbUnwrap x'
+    dumbUnwrap _ = error "dumbUnwrap received unexpected input"
+
+infixl 8 %%>
 
 
 
@@ -135,16 +137,18 @@ data JSBranch :: JSLens Symbol -> * -> * where
   JSArr :: Vector (JSBranch xs a) -> JSBranch ('JSArray xs) a
 
 
-unwrap :: JSBranch xs a -> JSUnwrap (JSBranch xs a)
+-- | 'Unwrap' captures the unstructured type encapsulated by a JSBranch
+type family Unwrap (x :: *) :: *
+type instance Unwrap (JSBranch 'JSExtract a) = a
+type instance Unwrap (JSBranch ('JSKey k js) a) = Unwrap (JSBranch js a)
+type instance Unwrap (JSBranch ('JSArray js) a) = [Unwrap (JSBranch js a)]
+
+
+-- | 'unwrap' allows parsing types to be removed from a JSBranch
+unwrap :: JSBranch xs a -> Unwrap (JSBranch xs a)
 unwrap (JSNil x) = x
 unwrap (JSCons x') = unwrap x'
 unwrap (JSArr xs) = V.toList $ fmap unwrap xs
-
-
-type family JSUnwrap (x :: *) :: *
-type instance JSUnwrap (JSBranch 'JSExtract a) = a
-type instance JSUnwrap (JSBranch ('JSKey k js) a) = JSUnwrap (JSBranch js a)
-type instance JSUnwrap (JSBranch ('JSArray js) a) = [JSUnwrap (JSBranch js a)]
 
 
 instance (A.FromJSON a, SingI xs) => A.FromJSON (JSBranch xs a) where
