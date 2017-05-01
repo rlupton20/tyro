@@ -77,18 +77,31 @@ type instance List (JSBranch xs a) = JSBranch ('JSArray xs) a
 
 -- | 'Tyro' is an abstract type representing a parser that walks down a JSON
 -- tree.
-newtype Tyro = Tyro [String] deriving (Eq, Show)
+newtype Tyro = Tyro (JSLens String) deriving (Show)
+
+-- | 'invert' turns a JSLens inside out. Its easier to do this at a value
+-- level, than to try to do this in the type system once the values have
+-- been reified. One typically thinks of a JSLens as a way to walk
+-- down a JSON object; once inverted, it describes how to walk from a value out.
+invert :: JSLens a -> JSLens a
+invert xs = churchInvert xs $ JSExtract
+  where
+    churchInvert :: JSLens a -> (JSLens a -> JSLens a)
+    churchInvert (JSExtract) = identity
+    churchInvert (JSKey k ks) = churchInvert ks . JSKey k
+    churchInvert (JSArray ks) = churchInvert ks . JSArray
+
 
 -- | 'extract' is the value which represents halting the walk along the JSON
 -- tree, and pulling out the value there.
 extract :: Tyro
-extract = Tyro []
+extract = Tyro JSExtract
 
 
 -- | '>%>' allows you to specify a subtree indexed by a key. It's right
 -- associative, so chains of keys can be specified without parenthesese.
 (>%>) :: String -> Tyro -> Tyro
-(>%>) s (Tyro t) = Tyro (s:t)
+(>%>) s (Tyro t) = Tyro (JSKey s t)
 infixr 9 >%>
 
 
@@ -100,12 +113,13 @@ data TyroProxy :: JSLens Symbol -> * where
 
 -- | '%%>' tries to parse a ByteString along a 'Tyro' to obtain a value
 (%%>) :: (A.FromJSON a) => B.ByteString -> Tyro -> Maybe a
-(%%>) bs (Tyro xs) = go bs (reverse xs) Take
+(%%>) bs (Tyro xs) = go bs (invert xs) Take
   where
     go :: (A.FromJSON a, SingI xs) =>
-      B.ByteString -> [String] -> TyroProxy xs -> Maybe a
-    go b [] t = fmap dumbUnwrap $ parse b t
-    go b (k:ks) t = reifySymbol k $ \p -> go b ks (extend t p)
+      B.ByteString -> JSLens String -> TyroProxy xs -> Maybe a
+    go b JSExtract t = fmap dumbUnwrap $ parse b t
+    go b (JSKey k ks) t = reifySymbol k $ \p -> go b ks (extend t p)
+    go _ _ _ = Nothing
 
     parse :: (A.FromJSON a, SingI xs) =>
       B.ByteString -> TyroProxy xs -> Maybe (JSBranch xs a)
