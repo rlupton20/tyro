@@ -29,7 +29,6 @@ module Data.Tyro (
   , (%%>)
 
 -- * Internal types
-  , JSLens(..)
   , JSBranch
   , Unwrap ) where
 

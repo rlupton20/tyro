@@ -8,6 +8,7 @@ import Test.HUnit ((~:),(@=?))
 
 import Protolude
 import Data.Tyro
+import Data.Tyro.Internal
 
 import qualified Data.Aeson as A
 import Data.Text (Text)
