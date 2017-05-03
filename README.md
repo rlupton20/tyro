@@ -25,7 +25,9 @@ values :: Maybe [Integer]
 values = fmap unwrap parsed
 ```
 
-### Value driven interface
+### Value driven interface (experimental)
+
+The value driven interface is still experimental, and in the process of being refined.
 
 ```Haskell
 {-# LANGUAGE OverloadedStrings #-}

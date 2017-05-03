@@ -205,6 +205,7 @@ reflectSymbol s = withKnownSymbol s $ proxySym s Proxy
 
 
 -- $value_example
+-- (Experimental!)
 -- The value level interface allows a piece of the JSON object to be extracted
 -- in a similar way to most dynamically typed languages.
 --
