@@ -1,6 +1,6 @@
 # tyro
 
-`tyro` is a dependently type JSON parsing library, that provides a quick way to create JSON parsers by deriving them from a type level description of the position of the value to be obtained.
+`tyro` is a dependently typed JSON parsing library, that provides a quick way to create JSON parsers by deriving them from a type level description of the position of the value to be obtained. It provides some of the same functionality as Aeson lenses, but derives the parsers from types rather than doing a generic parse and applying prisms. This was mostly an experiment in dependent typing.
 
 ## Examples
 
